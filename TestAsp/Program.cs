@@ -1,32 +1,52 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+
+using Swashbuckle.AspNetCore.SwaggerGen;
+using Swashbuckle.AspNetCore.SwaggerUI;
+using TestAsp.Data;
+using TestAsp.Servise;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+builder.Services.AddControllersWithViews();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen((SwaggerGenOptions opts) => {
+    opts.SwaggerDoc("test", new OpenApiInfo
+    {
+        Description = "Swagger",
+        Version = "test",
+        Title = "TestAsp"
+    });
+});
+builder.Services.AddDbContext<EFContext>((DbContextOptionsBuilder opts) =>
+{
+    opts.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-
-var summaries = new[]
+if (app.Environment.IsDevelopment())
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    app.Seeder();
+    app.UseSwagger();
+    app.UseSwaggerUI((SwaggerUIOptions opts) => {
+        opts.SwaggerEndpoint("/swagger/test/swagger.json", "TestAsp test");
+    });
+}
 
-app.MapGet("/weatherforecast", () =>
+app.UseRouting();
+
+app.UseCors(x => x
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+
+
+app.UseEndpoints(endpoints =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-       new WeatherForecast
-       (
-           DateTime.Now.AddDays(index),
-           Random.Shared.Next(-20, 55),
-           summaries[Random.Shared.Next(summaries.Length)]
-       ))
-        .ToArray();
-    return forecast;
+    endpoints.MapControllerRoute(
+        name: "default",
+        pattern: "{controller}/{action=Index}/{id?}");
 });
 
 app.Run();
-
-internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
